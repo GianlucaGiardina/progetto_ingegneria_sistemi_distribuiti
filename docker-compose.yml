@@ -23,10 +23,11 @@ services:
     ports:
       - '9091:9091' # Porta per l'applicazione Flask
     environment:
-      RABBIT_HOST: rabbitmq
+      RABBIT_HOST: rabbitmq # Indirizzo del servizio RabbitMQ
       RABBIT_QUEUE: test_queue
       RABBITMQ_DEFAULT_USER: user
       RABBITMQ_DEFAULT_PASS: pass
+
   consumer:
     build:
       context: ./consumer-summarize
@@ -35,7 +36,7 @@ services:
     depends_on:
       - rabbitmq
     environment:
-      - RABBIT_HOST=rabbitmq
+      - RABBIT_HOST=rabbitmq # Indirizzo del servizio RabbitMQ
       - RABBIT_QUEUE=test_queue
 
 volumes:

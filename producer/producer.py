@@ -11,6 +11,7 @@ RABBIT_QUEUE = os.environ.get("RABBIT_QUEUE", "test_queue")
 RABBIT_USER = os.environ.get("RABBITMQ_DEFAULT_USER", "user")
 RABBIT_PASS = os.environ.get("RABBITMQ_DEFAULT_PASS", "pass")
 
+
 def send_to_rabbitmq(message):
     """
     Invia un messaggio a RabbitMQ.
@@ -23,6 +24,7 @@ def send_to_rabbitmq(message):
     channel.basic_publish(exchange='', routing_key=RABBIT_QUEUE, body=message)
     connection.close()
 
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
@@ -34,6 +36,7 @@ def index():
             flash('Il campo di testo è vuoto. Inserisci un messaggio.', 'danger')
         return redirect(url_for('index'))
     return render_template('index.html')
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=9091)
