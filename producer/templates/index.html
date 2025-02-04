@@ -3,25 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invia Messaggio a RabbitMQ</title>
+    <title>Invia Messaggio a RabbitMQ (RPC Direct Reply-To)</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 <body>
     <div class="container mt-5">
-        <h1>Invia Messaggio a RabbitMQ</h1>
+        <h1>Invia Messaggio a RabbitMQ e ottieni il Riassunto (RPC)</h1>
+        
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="alert alert-{{ category }} mt-3">{{ message }}</div>
+              <div class="alert alert-{{ category }} mt-3" style="white-space: pre-wrap;">{{ message }}</div>
             {% endfor %}
           {% endif %}
         {% endwith %}
+        
         <form method="POST" action="/">
             <div class="form-group">
-                <label for="text">Inserisci il tuo messaggio:</label>
-                <textarea class="form-control" id="text" name="text" rows="4" required></textarea>
+                <label for="text">Inserisci il tuo testo da riassumere:</label>
+                <textarea class="form-control" id="text" name="text" rows="6" required></textarea>
             </div>
-            <button type="submit" class="btn btn-primary">Invia</button>
+            <button type="submit" class="btn btn-primary">Invia e Ottieni Riassunto</button>
         </form>
     </div>
 </body>

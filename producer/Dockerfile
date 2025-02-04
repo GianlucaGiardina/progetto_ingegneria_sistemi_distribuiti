@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia tutti i file Python e la directory templates
 COPY . .
+COPY /templates .
 
 # Comando per avviare l'app Flask
 CMD ["python", "producer.py"]
