@@ -11,4 +11,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Comando per avviare l'app Flask
-CMD ["python", "producer.py"]
+CMD ["python", "client.py"]
