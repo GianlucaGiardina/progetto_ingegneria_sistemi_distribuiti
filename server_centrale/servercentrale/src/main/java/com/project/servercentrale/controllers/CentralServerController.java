@@ -1,13 +1,14 @@
 package com.project.servercentrale.controllers;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.rabbitmq.client.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -15,72 +16,86 @@ import java.util.concurrent.Executors;
 @RequestMapping("/api")
 public class CentralServerController {
 
+    private static final String RABBITMQ_HOST = "localhost";
+    private static final String RABBITMQ_USER = "user";
+    private static final String RABBITMQ_PASS = "pass";
+    private static final String QUEUE_NAME = "test_coda";
+
     private final ExecutorService executorService = Executors.newCachedThreadPool();
 
     @PostMapping("/process")
     public ResponseEntity<?> handleRequest(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("userId") String userId,
-            @RequestParam("fileId") String fileId,
-            @RequestParam("services") List<String> services) {
+            @RequestParam("userId") String userId) {
 
-        // Salva il file
-        String filePath;
+        String fileId = UUID.randomUUID().toString(); // Genera un fileId univoco
+        String requestId = UUID.randomUUID().toString(); // Genera un requestId univoco
+
+        // Rispondi subito al client con request_id
+        executorService.submit(() -> processInBackground(file, userId, fileId, requestId));
+
+        return ResponseEntity.ok().body("{\"requestId\": \"" + requestId + "\"}");
+    }
+
+    private void processInBackground(MultipartFile file, String userId, String fileId, String requestId) {
         try {
-            filePath = saveFile(file, fileId);
-        } catch (IOException e) {
-            return ResponseEntity.badRequest().body("Errore nel salvataggio del file: " + e.getMessage());
-        }
+            // Estrarre il testo dal file
+            String fileText = extractTextFromFile(file);
 
-        // Restituisci subito la conferma al client
-        Map<String, String> initialResponse = new HashMap<>();
-        initialResponse.put("message", "Richiesta ricevuta");
-        initialResponse.put("userId", userId);
-        initialResponse.put("fileId", fileId);
+            // Invia il messaggio a RabbitMQ e resta in attesa della risposta
+            String response = sendMessageToQueue(userId, fileId, requestId, fileText);
 
-        // Elabora i servizi in background
-        executorService.submit(() -> processServices(filePath, userId, fileId, services));
+            // Aggiorna lo stato della richiesta con la risposta ricevuta
+            updateStatus(requestId, response);
 
-        return ResponseEntity.ok(initialResponse);
-    }
-
-    private void processServices(String filePath, String userId, String fileId, List<String> services) {
-        Map<String, String> statusUpdate = new HashMap<>();
-        statusUpdate.put("userId", userId);
-        statusUpdate.put("fileId", fileId);
-
-        if (services.contains("summarization")) {
-            String summaryResult = callSummarizationService(filePath);
-            updateStatus(userId, fileId, "summarization", "completed", summaryResult);
-        }
-        if (services.contains("nlp")) {
-            String nlpResult = callNlpService(filePath);
-            updateStatus(userId, fileId, "nlp", "completed", nlpResult);
+        } catch (Exception e) {
+            updateStatus(requestId, "Errore durante l'elaborazione: " + e.getMessage());
         }
     }
 
-    private String saveFile(MultipartFile file, String fileId) throws IOException {
-        // Salva il file su disco o storage
-        String filePath = "/path/to/uploads/" + fileId + ".pdf";
-        file.transferTo(new File(filePath));
-        return filePath;
+    private String extractTextFromFile(MultipartFile file) throws IOException {
+        return new String(file.getBytes(), StandardCharsets.UTF_8); // Placeholder, sostituire con parser PDF
     }
 
-    private String callSummarizationService(String filePath) {
-        // Invoca il servizio di Summarization
-        // Simulazione chiamata REST o logica locale
-        return "Risultato della Summarization per il file: " + filePath;
+    private String sendMessageToQueue(String userId, String fileId, String requestId, String message) throws Exception {
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost(RABBITMQ_HOST);
+        factory.setUsername(RABBITMQ_USER);
+        factory.setPassword(RABBITMQ_PASS);
+
+        try (Connection connection = factory.newConnection();
+             Channel channel = connection.createChannel()) {
+
+            final String correlationId = UUID.randomUUID().toString();
+            final String replyQueue = "amq.rabbitmq.reply-to";
+
+            AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
+                    .correlationId(correlationId)
+                    .replyTo(replyQueue)
+                    .build();
+
+            String messageToSend = String.format("{\"userId\": \"%s\", \"fileId\": \"%s\", \"requestId\": \"%s\", \"text\": \"%s\"}", 
+                                                  userId, fileId, requestId, message);
+            channel.basicPublish("", QUEUE_NAME, props, messageToSend.getBytes(StandardCharsets.UTF_8));
+
+            final String[] response = new String[1];
+            DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+                if (delivery.getProperties().getCorrelationId().equals(correlationId)) {
+                    response[0] = new String(delivery.getBody(), StandardCharsets.UTF_8);
+                }
+            };
+            channel.basicConsume(replyQueue, true, deliverCallback, consumerTag -> {});
+
+            // Attende la risposta
+            while (response[0] == null) {
+                Thread.sleep(100);
+            }
+            return response[0];
+        }
     }
 
-    private String callNlpService(String filePath) {
-        // Invoca il servizio NLP
-        // Simulazione chiamata REST o logica locale
-        return "Risultato dell'NLP per il file: " + filePath;
-    }
-
-    private void updateStatus(String userId, String fileId, String service, String status, String result) {
-        // Simula un aggiornamento dello stato del servizio in una tabella o log
-        System.out.println("Aggiornamento stato - UserID: " + userId + ", FileID: " + fileId + ", Service: " + service + ", Status: " + status + ", Result: " + result);
-        // Puoi usare un database per aggiornare lo stato delle richieste
+    private void updateStatus(String requestId, String response) {
+        System.out.println("Aggiornamento stato - RequestID: " + requestId + " - Stato: " + response);
+        // Simula un aggiornamento in un database
     }
 }
