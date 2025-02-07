@@ -2,14 +2,16 @@ package com.project.servercentrale.controllers;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.rabbitmq.client.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.project.servercentrale.models.RequestState;
+import com.project.servercentrale.models.RequestResults;
+import com.project.servercentrale.repositories.RequestStateRepository;
+import com.project.servercentrale.repositories.RequestResultsRepository;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.beans.factory.annotation.Autowired;
-import com.project.servercentrale.models.RequestState;
-import com.project.servercentrale.repositories.RequestStateRepository;
+import com.rabbitmq.client.*;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
@@ -23,15 +25,19 @@ public class CentralServerController {
     private static final String RABBITMQ_HOST = "localhost";
     private static final String RABBITMQ_USER = "user";
     private static final String RABBITMQ_PASS = "pass";
-    private static final String QUEUE_SUMMARIZATION = "test_queue";
+    private static final String QUEUE_SUMMARIZATION = "summarize_queue";
     private static final String QUEUE_NLP = "nlp_queue";
     private static final String EXTRACT_TEXT_API = "http://localhost:5001/apii/extract/text";
-    private static final String UPDATE_STATUS_API = "http://localhost:8080/api/update_status";
+    private static final String UPDATE_STATUS_API = "http://localhost:8080/api/status/update";
+    private static final String SAVE_RESULTS_API = "http://localhost:8080/api/results/save";
 
     private final ExecutorService executorService = Executors.newCachedThreadPool();
 
     @Autowired
     private RequestStateRepository requestStateRepository;
+    
+    @Autowired
+    private RequestResultsRepository requestResultsRepository;
 
     @PostMapping("/process")
     public ResponseEntity<?> handleRequest(@RequestBody RequestPayload payload) {
@@ -40,19 +46,21 @@ public class CentralServerController {
         RequestState requestState = new RequestState(requestId, payload.getUserId(), payload.getFileId(), payload.getServices());
         requestStateRepository.save(requestState);
 
-        executorService.submit(() -> processInBackground(payload, requestId));
+        executorService.submit(() -> processInBackground(payload, requestId,requestState));
         return ResponseEntity.ok().body("{" + "\"requestId\": \"" + requestId + "\"}" );
     }
 
-    private void processInBackground(RequestPayload payload, String requestId) {
+    private void processInBackground(RequestPayload payload, String requestId,RequestState requestState) {
         try {
             String extractedText = extractTextFromFile(payload.getFile());
-            System.err.println("xiaoooo"+extractedText);
+            RequestResults results = new RequestResults(requestId,requestState, extractedText, null, null);
+            requestResultsRepository.save(results);
+
             for (String service : payload.getServices()) {
                 sendMessageToQueue(requestId, extractedText, service);
             }
         } catch (Exception e) {
-            System.out.println(e);
+            notifyStatusUpdate(requestId, "error", e.getMessage());
         }
     }
 
@@ -82,6 +90,7 @@ public class CentralServerController {
             DeliverCallback deliverCallback = (consumerTag, delivery) -> {
                 if (delivery.getProperties().getCorrelationId().equals(correlationId)) {
                     response[0] = new String(delivery.getBody(), StandardCharsets.UTF_8);
+                    saveResults(requestId, service, response[0]);
                     notifyStatusUpdate(requestId, service, "processed");
                 }
             };
@@ -104,13 +113,22 @@ public class CentralServerController {
 
     private void notifyStatusUpdate(String requestId, String service, String status) {
         RestTemplate restTemplate = new RestTemplate();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        
-        String jsonPayload = String.format("{\"requestId\": \"%s\", \"service\": \"%s\", \"status\": \"%s\"}", requestId, service, status);
-        HttpEntity<String> request = new HttpEntity<>(jsonPayload, headers);
-        System.out.println(jsonPayload);
-        restTemplate.postForObject(UPDATE_STATUS_API, request, String.class);
+        String url = String.format("%s?requestId=%s&service=%s&status=%s", UPDATE_STATUS_API, requestId, service, status);
+        try {
+            restTemplate.postForObject(url, null, String.class);
+        } catch (Exception e) {
+            System.err.println("Errore nell'aggiornamento dello stato: " + e.getMessage());
+        }
+    }
+
+    private void saveResults(String requestId, String service, String result) {
+        RequestResults results = requestResultsRepository.findById(requestId).get();
+        if ("summarization".equals(service)) {
+            results.setSummarizationResult(result);
+        } else if ("nlp".equals(service)) {
+            results.setNlpResult(result);
+        }
+        requestResultsRepository.save(results);
     }
 
     public static class RequestPayload {
@@ -128,20 +146,4 @@ public class CentralServerController {
         public List<String> getServices() { return services; }
         public void setServices(List<String> services) { this.services = services; }
     }
-
-
-@PostMapping("/update_status")
-public ResponseEntity<?> updateStatus(@RequestParam String requestId, @RequestParam String service, @RequestParam String status) {
-    RequestState requestState = requestStateRepository.findById(requestId).orElse(null);
-    if (requestState != null) {
-        if ("summarization".equals(service)) {
-            requestState.setSummarizationStatus(status);
-        } else if ("nlp".equals(service)) {
-            requestState.setNlpStatus(status);
-        }
-        requestStateRepository.save(requestState);
-        return ResponseEntity.ok().body("{" + "\"message\": \"Status updated successfully\"}" );
-    } else {
-        return ResponseEntity.badRequest().body("{" + "\"error\": \"Request ID not found\"}" );
-    }
-}}
+}
