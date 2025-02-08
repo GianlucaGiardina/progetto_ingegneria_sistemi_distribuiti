@@ -15,23 +15,6 @@ public class RequestStatusController {
     @Autowired
     private RequestStateRepository requestStateRepository;
 
-    @PostMapping("/update")
-    public ResponseEntity<?> updateStatus(@RequestParam String requestId, @RequestParam String service, @RequestParam String status) {
-        System.out.println(requestId + " " + status + " " + service);
-        RequestState requestState = requestStateRepository.findById(requestId).orElse(null);
-        if (requestState != null) {
-            if ("summarization".equals(service)) {
-                requestState.setSummarizationStatus(status);
-            } else if ("nlp".equals(service)) {
-                requestState.setNlpStatus(status);
-            }
-            requestStateRepository.save(requestState);
-            return ResponseEntity.ok().body("{" + "\"message\": \"Status updated successfully\"}" );
-        } else {
-            return ResponseEntity.badRequest().body("{" + "\"error\": \"Request ID not found\"}" );
-        }
-    }
-
     @GetMapping("/get")
     public ResponseEntity<?> getStatus(@RequestParam String requestId) {
         Optional<RequestState> requestState = requestStateRepository.findById(requestId);
