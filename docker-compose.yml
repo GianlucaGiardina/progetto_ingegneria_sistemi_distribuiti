@@ -25,7 +25,7 @@ services:
     volumes:
       - mongo_data:/data/db
 
-  producer:
+  producer: # SOLAMENTE PER TESTARE IL CONSUMER SUMMARIZER
     build:
       context: ./producer
       dockerfile: Dockerfile
@@ -34,27 +34,38 @@ services:
       - rabbitmq
       - mongodb
     ports:
-      - '9091:9091' # Porta per l'applicazione Flask
+      - '9091:9091' 
     environment:
       RABBIT_HOST: rabbitmq
-      RABBIT_QUEUE: test_queue
+      RABBIT_QUEUE: summarize_queue
       RABBITMQ_DEFAULT_USER: user
       RABBITMQ_DEFAULT_PASS: pass
       MONGO_URI: mongodb://admin:adminpass@mongodb:27017
 
-  consumer:
+  consumersummarize: #Consumer summarizer 
     build:
       context: ./consumer-summarize
       dockerfile: Dockerfile
-    container_name: consumer
+    container_name: consumersummarize
     depends_on:
       - rabbitmq
       - mongodb
     environment:
       RABBIT_HOST: rabbitmq
-      RABBIT_QUEUE: test_queue
+      RABBIT_QUEUE: summarize_queue
       MONGO_URI: mongodb://admin:adminpass@mongodb:27017
-
+  consumernlp: #Consumer summarizer 
+    build:
+      context: ./consumer-nlp
+      dockerfile: Dockerfile
+    container_name: consumernlp
+    depends_on:
+      - rabbitmq
+      - mongodb
+    environment:
+      RABBIT_HOST: rabbitmq
+      RABBIT_QUEUE: nlp_queue
+      MONGO_URI: mongodb://admin:adminpass@mongodb:27017
   extract_text_service:
     build:
       context: ./extract_text_service

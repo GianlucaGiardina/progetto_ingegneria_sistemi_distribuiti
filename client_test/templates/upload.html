@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload File</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
 </head>
 <body>
     <h2>Carica un file PDF</h2>
@@ -19,6 +25,13 @@
         <input type="checkbox" name="services" value="nlp"> NLP<br><br>
 
         <input type="submit" value="Carica File">
+    </form>
+
+    <h2>Le tue richieste</h2>
+    <form action="/requests" method="get">
+        <label for="userId">Inserisci User ID:</label>
+        <input type="text" name="userId" required>
+        <input type="submit" value="Visualizza richieste">
     </form>
 </body>
 </html>

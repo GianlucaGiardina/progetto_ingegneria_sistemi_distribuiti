@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risultati Elaborazione</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h2>Risultati Elaborazione</h2>
+    <form action="/results" method="get">
+        <label for="userId">Inserisci User ID:</label>
+        <input type="text" name="userId" required>
+        <input type="submit" value="Visualizza risultati">
+    </form>
+
+    {% if results %}
+    <table>
+        <tr>
+            <th>Request ID</th>
+            <th>Testo Estratto</th>
+            <th>Summarization</th>
+            <th>NLP</th>
+        </tr>
+        <tr>
+            <td>{{ results.requestId }}</td>
+            <td>{{ results.extractedText }}</td>
+            <td>{{ results.summarizationResult }}</td>
+            <td>{{ results.nlpResult }}</td>
+        </tr>
+    </table>
+    {% endif %}
+</body>
+</html>
