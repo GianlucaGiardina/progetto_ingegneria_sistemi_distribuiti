@@ -4,9 +4,9 @@ import requests
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
-UPLOAD_URL = "http://127.0.0.1:8080/api/process"  # URL del server Spring Boot
-STATUS_URL = "http://127.0.0.1:8080/api/status/getByUserId"  # API per ottenere le richieste dell'utente
-RESULTS_URL = "http://127.0.0.1:8080/api/results/get"  # API per ottenere i risultati
+UPLOAD_URL = "http://host.docker.internal:8080/api/process"  # URL del server Spring Boot
+STATUS_URL = "http://host.docker.internal:8080/api/status/getByUserId"  # API per ottenere le richieste dell'utente
+RESULTS_URL = "http://host.docker.internal:8080/api/results/get"  # API per ottenere i risultati
 
 def encode_file_to_base64(file):
     return base64.b64encode(file.read()).decode('utf-8')

@@ -25,9 +25,6 @@ public class CentralServerController {
         return ResponseEntity.ok().body("{\"requestId\":\"" + requestId + "\"}");
     }
 
-    // Se avevi altri endpoint (es. /update), puoi mantenerli qui
-    // o spostarli dove preferisci.
-
     // DTO/Request payload del corpo JSON
     public static class RequestPayload {
         private String file;
