@@ -1,3 +1,4 @@
+import React from "react";
 import { useRef } from "react";
 
 export const Register = () => {
@@ -22,7 +23,7 @@ export const Register = () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        username: email.current.value,
+        username: username.current.value,
         password: passwordValue,
       }),
     });

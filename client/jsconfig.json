@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "module": "ES6",
+    "jsx": "preserve",
+    "checkJs": true,
+    "moduleResolution": "bundler"
+  },
+  "exclude": ["node_modules", "**/node_modules/*", "**/*.config.js"]
+}
