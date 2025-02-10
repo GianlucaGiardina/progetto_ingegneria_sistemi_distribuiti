@@ -1,5 +1,7 @@
+bcrypt
 flask
 flask_cors
 Flask-JWT-Extended
+python-dotenv
 pymongo
-bcrypt
+waitress

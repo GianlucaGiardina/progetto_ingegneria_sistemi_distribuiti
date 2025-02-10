@@ -5,7 +5,7 @@ services:
     image: rabbitmq:3.11-management
     container_name: rabbitmq
     ports:
-      - "5672:5672"   # Porta AMQP
+      - "5672:5672" # Porta AMQP
       - "15672:15672" # Porta Management Console di RabbitMQ
     environment:
       RABBITMQ_DEFAULT_USER: user
@@ -34,7 +34,7 @@ services:
       - rabbitmq
       - mongodb
     ports:
-      - '9091:9091' 
+      - "9091:9091"
     environment:
       RABBIT_HOST: rabbitmq
       RABBIT_QUEUE: summarize_queue
@@ -42,7 +42,7 @@ services:
       RABBITMQ_DEFAULT_PASS: pass
       MONGO_URI: mongodb://admin:adminpass@mongodb:27017
 
-  consumersummarize: #Consumer summarizer 
+  consumersummarize: #Consumer summarizer
     build:
       context: ./consumer-summarize
       dockerfile: Dockerfile
@@ -54,7 +54,8 @@ services:
       RABBIT_HOST: rabbitmq
       RABBIT_QUEUE: summarize_queue
       MONGO_URI: mongodb://admin:adminpass@mongodb:27017
-  consumernlp: #Consumer summarizer 
+
+  consumernlp: #Consumer summarizer
     build:
       context: ./consumer-nlp
       dockerfile: Dockerfile
@@ -66,15 +67,6 @@ services:
       RABBIT_HOST: rabbitmq
       RABBIT_QUEUE: nlp_queue
       MONGO_URI: mongodb://admin:adminpass@mongodb:27017
-  extract_text_service:
-    build:
-      context: ./extract_text_service
-      dockerfile: Dockerfile
-    container_name: extract_text_service
-    depends_on:
-      - rabbitmq
-    ports:
-      - "5001:5001"   
 
   client_test:
     build:
@@ -84,7 +76,25 @@ services:
     depends_on:
       - rabbitmq
     ports:
-      - "5000:5000"   
+      - "5000:5000"
+
+  extract_text_service:
+    build:
+      context: ./extract_text_service
+      dockerfile: Dockerfile
+    container_name: extract_text_service
+    depends_on:
+      - rabbitmq
+    ports:
+      - "5001:5001"
+
+  auth_server:
+    build:
+      context: ./auth_server
+      dockerfile: Dockerfile
+    container_name: auth_server
+    ports:
+      - "5002:5002"
 
 volumes:
   rabbitmq_data:

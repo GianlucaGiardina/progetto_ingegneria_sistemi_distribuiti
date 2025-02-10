@@ -1,12 +1,12 @@
+import bcrypt
 from datetime import timedelta
+from dotenv import load_dotenv
 from flask import Flask, jsonify, request, url_for
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, set_access_cookies
-from pymongo import MongoClient
 import os
-from dotenv import load_dotenv
-import bcrypt
-
+from pymongo import MongoClient
+from waitress import serve
 
 load_dotenv()
 
@@ -83,4 +83,4 @@ def validate_token():
   return jsonify({"valid": True, "user": current_user}), 200
   
 if __name__ == '__main__':
-  app.run(debug=True, port=3001)
+  serve(app, host="0.0.0.0", port=5002)
