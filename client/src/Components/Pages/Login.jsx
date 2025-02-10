@@ -18,12 +18,14 @@ export const Login = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ username: user, password: pass }),
+          credentials: "include",
         });
         const data = await response.json();
         if (data.error) {
           setError(data.error);
           return;
         }
+        window.location.href = "/dashboard";
       } catch (error) {
         console.error(error);
       }

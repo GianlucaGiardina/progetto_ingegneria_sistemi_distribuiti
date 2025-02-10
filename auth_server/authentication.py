@@ -1,6 +1,6 @@
 from datetime import timedelta
-from flask import Flask, jsonify, request
-from flask_cors import CORS, cross_origin
+from flask import Flask, jsonify, request, url_for
+from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, set_access_cookies
 from pymongo import MongoClient
 import os
@@ -22,7 +22,6 @@ client = MongoClient(os.environ.get("MONGO_URI"))
 jwt = JWTManager(app)
 
 @app.route('/register', methods=['GET', 'POST'])
-@cross_origin()
 def register():
   if request.method == 'POST':
     data = request.json
@@ -48,7 +47,6 @@ def register():
     return jsonify({"message": "Register a new user"}), 200
 
 @app.route('/login', methods=['GET', 'POST'])
-@cross_origin()
 def login():
   if request.method == 'POST':
     data = request.json
@@ -69,7 +67,7 @@ def login():
     if bcrypt.checkpw(password.encode('utf-8'), user['password']):
         access_token = create_access_token(identity=str(user['_id']), expires_delta=timedelta(minutes=15))
         resp = jsonify({"message": "Login Success"})
-        resp.set_cookie('access_token', access_token)
+        set_access_cookies(resp, access_token)
         return resp, 200
     else:
         return jsonify({"error": "Invalid username or password"}), 401
@@ -77,10 +75,11 @@ def login():
     return jsonify({"message": "Login with your username and password"}), 200
   
 @app.route('/api/validate_token', methods=['GET'])
-@cross_origin()
 @jwt_required()
 def validate_token():
+  print("Validating token")
   current_user = get_jwt_identity()
+  print(current_user)
   return jsonify({"valid": True, "user": current_user}), 200
   
 if __name__ == '__main__':

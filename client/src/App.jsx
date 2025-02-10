@@ -1,12 +1,13 @@
 import React from "react";
 import "./App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Dashboard, Login, Register } from "./Components/Pages";
 import { useState } from "react";
 import { useEffect } from "react";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const checkTokenValidity = async () => {
     try {
@@ -20,6 +21,8 @@ function App() {
       }
     } catch {
       setIsLoggedIn(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -32,18 +35,64 @@ function App() {
       <div className="w-lvw h-lvh flex items-center justify-center">
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={isLoggedIn ? <Dashboard /> : <Login />} />
+            <Route
+              path="/"
+              element={
+                !isLoading ? (
+                  isLoggedIn ? (
+                    <Dashboard />
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                ) : (
+                  <div></div>
+                )
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                !isLoading ? (
+                  isLoggedIn ? (
+                    <Dashboard />
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                ) : (
+                  <div></div>
+                )
+              }
+            />
             <Route
               path="/login"
-              element={isLoggedIn ? <Dashboard /> : <Login />}
+              element={
+                !isLoading ? (
+                  isLoggedIn ? (
+                    <Navigate to="/" />
+                  ) : (
+                    <Login />
+                  )
+                ) : (
+                  <div></div>
+                )
+              }
             />
             <Route
               path="/register"
-              element={isLoggedIn ? <Dashboard /> : <Register />}
+              element={
+                !isLoading ? (
+                  isLoggedIn ? (
+                    <Navigate to="/" />
+                  ) : (
+                    <Register />
+                  )
+                ) : (
+                  <div></div>
+                )
+              }
             />
           </Routes>
         </BrowserRouter>
-        {/* <UploadPDF className="w-96" /> */}
       </div>
     </>
   );
