@@ -7,7 +7,6 @@ import com.project.servercentrale.models.RequestResults;
 import com.project.servercentrale.repositories.RequestResultsRepository;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/results")

@@ -6,6 +6,7 @@ import com.project.servercentrale.repositories.PDFProcessingResultRepository;
 import com.project.servercentrale.repositories.ProcessingStatusRepository;
 import com.rabbitmq.client.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -14,10 +15,15 @@ import java.util.UUID;
 @Service
 public class SummarizationStrategy implements ProcessingStrategy {
 
-    private static final String RABBITMQ_HOST = "localhost";
-    private static final String QUEUE_SUMMARIZATION = "summarize_queue";
-    private static final String RABBITMQ_USER = "user";
-    private static final String RABBITMQ_PASS = "pass";
+@Value("${rabbitmq.host}")
+private String RABBITMQ_HOST;
+@Value("${rabbitmq.user}")
+private String RABBITMQ_USER;
+@Value("${rabbitmq.pass}")
+private String RABBITMQ_PASS;
+@Value("${rabbitmq.queue.summarize}")
+private String QUEUE_SUMMARIZE;
+
     @Autowired
     private PDFProcessingResultRepository pdfProcessingResultRepository;
 
@@ -64,7 +70,7 @@ public class SummarizationStrategy implements ProcessingStrategy {
                     .build();
 
             String messageToSend = String.format("{\"text\":\"%s\"}", extractedText);
-            channel.basicPublish("", QUEUE_SUMMARIZATION, props, messageToSend.getBytes(StandardCharsets.UTF_8));
+            channel.basicPublish("", QUEUE_SUMMARIZE, props, messageToSend.getBytes(StandardCharsets.UTF_8));
 
             // Attesa della risposta (sincronizzazione)
             while (response[0] == null) {

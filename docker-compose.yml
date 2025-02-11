@@ -54,6 +54,7 @@ services:
       RABBIT_HOST: rabbitmq
       RABBIT_QUEUE: summarize_queue
       MONGO_URI: mongodb://admin:adminpass@mongodb:27017
+
   consumernlp: #Consumer summarizer 
     build:
       context: ./consumer-nlp
@@ -76,8 +77,8 @@ services:
       - mongodb
     environment:
       RABBIT_HOST: rabbitmq
-      RABBIT_QUEUE: extractcontext_queue
-      
+      RABBIT_QUEUE: context_queue
+
   extract_text_service:
     build:
       context: ./extract_text_service
@@ -88,6 +89,35 @@ services:
     ports:
       - "5001:5001"   
 
+  server_centrale_springboot: #Consumer summarizer 
+    build:
+      context: ./server_centrale_springboot
+      dockerfile: Dockerfile
+    container_name: server_centrale_springboot
+    depends_on:
+      - rabbitmq
+      - mongodb
+    environment:
+      # Spring Boot Config
+      - SPRING_APPLICATION_NAME=servercentrale
+      - SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+
+      # MongoDB Config
+      - SPRING_DATA_MONGODB_URI=mongodb://admin:adminpass@mongodb:27017/server_db?authSource=admin
+      - SPRING_DATA_MONGODB_DATABASE=server_db
+
+      # Configurazione API di estrazione testo
+      - EXTRACT_TEXT_API=http://extract_text_service:5001/extract/text
+
+      # Configurazione RabbitMQ
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=user
+      - RABBITMQ_PASS=pass
+      - RABBITMQ_QUEUE_NLP=nlp_queue
+      - RABBITMQ_QUEUE_SUMMARIZE=summarize_queue
+      - RABBITMQ_QUEUE_CONTEXT=context_queue
+    ports:
+      - "8080:8080"  
   client_test:
     build:
       context: ./client_test

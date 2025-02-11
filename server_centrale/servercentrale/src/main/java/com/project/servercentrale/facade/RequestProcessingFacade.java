@@ -24,9 +24,6 @@ public class RequestProcessingFacade {
     private PDFProcessingResultRepository pdfProcessingResultRepository;
 
     @Autowired
-    private ImageProcessingResultRepository imageProcessingResultRepository;
-
-    @Autowired
     private ProcessingStatusRepository processingStatusRepository;
 
     @Autowired

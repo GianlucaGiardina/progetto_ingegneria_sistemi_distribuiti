@@ -6,6 +6,7 @@ import com.project.servercentrale.repositories.PDFProcessingResultRepository;
 import com.project.servercentrale.repositories.ProcessingStatusRepository;
 import com.rabbitmq.client.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -14,10 +15,15 @@ import java.util.UUID;
 @Service
 public class NlpStrategy implements ProcessingStrategy {
 
-    private static final String RABBITMQ_HOST = "localhost";
-    private static final String RABBITMQ_USER = "user";
-    private static final String RABBITMQ_PASS = "pass";
-    private static final String QUEUE_NLP = "nlp_queue";
+@Value("${rabbitmq.host}")
+private String RABBITMQ_HOST;
+@Value("${rabbitmq.user}")
+private String RABBITMQ_USER;
+@Value("${rabbitmq.pass}")
+private String RABBITMQ_PASS;
+@Value("${rabbitmq.queue.nlp}")
+private String QUEUE_NLP;
+
 
 
     @Autowired

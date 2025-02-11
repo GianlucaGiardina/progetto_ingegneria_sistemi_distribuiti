@@ -1,7 +1,6 @@
 package com.project.servercentrale.strategy;
 
 import com.project.servercentrale.models.ImageProcessingResult;
-import com.project.servercentrale.models.PDFProcessingResult;
 import com.project.servercentrale.models.ProcessingStatus;
 import com.project.servercentrale.models.RequestState;
 import com.project.servercentrale.repositories.ImageProcessingResultRepository;
@@ -9,6 +8,7 @@ import com.project.servercentrale.repositories.ProcessingStatusRepository;
 import com.project.servercentrale.repositories.RequestStateRepository;
 import com.rabbitmq.client.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -17,10 +17,14 @@ import java.util.UUID;
 @Service
 public class ContextExtractionStrategy implements ProcessingStrategy {
 
-    private static final String RABBITMQ_HOST = "localhost";
-    private static final String QUEUE_CONTEXT = "extractcontext_queue";
-    private static final String RABBITMQ_USER = "user";
-    private static final String RABBITMQ_PASS = "pass";
+@Value("${rabbitmq.host}")
+private String RABBITMQ_HOST;
+@Value("${rabbitmq.user}")
+private String RABBITMQ_USER;
+@Value("${rabbitmq.pass}")
+private String RABBITMQ_PASS;
+@Value("${rabbitmq.queue.context}")
+private String QUEUE_CONTEXT;
     @Autowired
     private ImageProcessingResultRepository imageProcessingResultRepository;
     @Autowired
@@ -49,8 +53,7 @@ public class ContextExtractionStrategy implements ProcessingStrategy {
             DeliverCallback deliverCallback = (consumerTag, delivery) -> {
                 if (delivery.getProperties().getCorrelationId().equals(correlationId)) {
                     response[0] = new String(delivery.getBody(), StandardCharsets.UTF_8);
-                    // Salviamo il risultato del context extraction
-                    // Recuperiamo il risultato Image e aggiorniamo il summarization
+
                     RequestState rs =requestStateRepository.findById(processingStatus.getRequestId()).get();
                     ImageProcessingResult result = new ImageProcessingResult(
                             processingStatus.getRequestId(),

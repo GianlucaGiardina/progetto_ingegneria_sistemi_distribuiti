@@ -1,5 +1,6 @@
 package com.project.servercentrale.services;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -12,8 +13,9 @@ import org.springframework.web.client.RestTemplate;
  */
 @Service
 public class TextExtractionService {
-
-    private static final String EXTRACT_TEXT_API = "http://localhost:5001/apii/extract/text";
+    @Value("${extract.text.api}")
+    private String EXTRACT_TEXT_API;
+    
 
     public String extractTextFromFile(String base64File) {
         RestTemplate restTemplate = new RestTemplate();

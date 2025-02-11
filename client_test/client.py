@@ -6,7 +6,7 @@ from flask import Flask, render_template, request, jsonify
 app = Flask(__name__)
 
 # URL del server Spring Boot
-BASE_URL = "http://127.0.0.1:8080/api"
+BASE_URL = "http://host.docker.internal:8080/api"
 UPLOAD_PDF_URL = f"{BASE_URL}/process_pdf"
 UPLOAD_IMAGE_URL = f"{BASE_URL}/process_image"
 STATUS_URL = f"{BASE_URL}/status/getByUserId"
@@ -108,6 +108,7 @@ def processing_results():
 
     except ValueError:
         return jsonify({"error": "Risposta non valida dal server"}), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
