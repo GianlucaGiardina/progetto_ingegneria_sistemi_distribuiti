@@ -66,6 +66,18 @@ services:
       RABBIT_HOST: rabbitmq
       RABBIT_QUEUE: nlp_queue
       MONGO_URI: mongodb://admin:adminpass@mongodb:27017
+  consumerimagecontext: #Consumer summarizer 
+    build:
+      context: ./consumer-imagecontext
+      dockerfile: Dockerfile
+    container_name: consumerimagecontext
+    depends_on:
+      - rabbitmq
+      - mongodb
+    environment:
+      RABBIT_HOST: rabbitmq
+      RABBIT_QUEUE: extractcontext_queue
+      
   extract_text_service:
     build:
       context: ./extract_text_service

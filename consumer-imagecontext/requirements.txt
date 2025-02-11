@@ -1,0 +1,6 @@
+flask
+pika
+transformers
+torch
+Pillow
+numpy

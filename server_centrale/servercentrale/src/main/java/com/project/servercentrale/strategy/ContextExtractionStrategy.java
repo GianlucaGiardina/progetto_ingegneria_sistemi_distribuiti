@@ -1,9 +1,12 @@
 package com.project.servercentrale.strategy;
 
+import com.project.servercentrale.models.ImageProcessingResult;
 import com.project.servercentrale.models.PDFProcessingResult;
 import com.project.servercentrale.models.ProcessingStatus;
-import com.project.servercentrale.repositories.PDFProcessingResultRepository;
+import com.project.servercentrale.models.RequestState;
+import com.project.servercentrale.repositories.ImageProcessingResultRepository;
 import com.project.servercentrale.repositories.ProcessingStatusRepository;
+import com.project.servercentrale.repositories.RequestStateRepository;
 import com.rabbitmq.client.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -12,22 +15,25 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 @Service
-public class SummarizationStrategy implements ProcessingStrategy {
+public class ContextExtractionStrategy implements ProcessingStrategy {
 
     private static final String RABBITMQ_HOST = "localhost";
-    private static final String QUEUE_SUMMARIZATION = "summarize_queue";
+    private static final String QUEUE_CONTEXT = "extractcontext_queue";
     private static final String RABBITMQ_USER = "user";
     private static final String RABBITMQ_PASS = "pass";
     @Autowired
-    private PDFProcessingResultRepository pdfProcessingResultRepository;
+    private ImageProcessingResultRepository imageProcessingResultRepository;
+    @Autowired
+    private RequestStateRepository requestStateRepository;
 
     @Autowired
     private ProcessingStatusRepository processingStatusRepository;
 
     @Override
-    public void process(String requestId, String extractedText) throws Exception {
-        // Aggiorniamo lo stato a "in_progress"
-        processingStatusRepository.save(new ProcessingStatus(requestId, "summarization", "in_progress"));
+    public void process(String requestId, String imageBase64) throws Exception {
+        // Stato aggiornato a "in_progress"
+        ProcessingStatus processingStatus =new ProcessingStatus(requestId, "context", "in_progress");
+        processingStatusRepository.save(processingStatus);
 
         ConnectionFactory factory = new ConnectionFactory();
         factory.setHost(RABBITMQ_HOST);
@@ -43,16 +49,17 @@ public class SummarizationStrategy implements ProcessingStrategy {
             DeliverCallback deliverCallback = (consumerTag, delivery) -> {
                 if (delivery.getProperties().getCorrelationId().equals(correlationId)) {
                     response[0] = new String(delivery.getBody(), StandardCharsets.UTF_8);
-
-                    // Recuperiamo il risultato PDF e aggiorniamo il summarization
-                    PDFProcessingResult result = pdfProcessingResultRepository.findById(requestId)
-                            .orElseThrow(() -> new RuntimeException("PDF Result not found for id: " + requestId));
-
-                    result.setSummarizationResult(response[0]);
-                    pdfProcessingResultRepository.save(result);
-
+                    // Salviamo il risultato del context extraction
+                    // Recuperiamo il risultato Image e aggiorniamo il summarization
+                    RequestState rs =requestStateRepository.findById(processingStatus.getRequestId()).get();
+                    ImageProcessingResult result = new ImageProcessingResult(
+                            processingStatus.getRequestId(),
+                            rs,
+                            response[0]
+                    );
+                    imageProcessingResultRepository.save(result);
                     // Stato aggiornato a "completed"
-                    processingStatusRepository.save(new ProcessingStatus(requestId, "summarization", "completed"));
+                    processingStatusRepository.save(new ProcessingStatus(requestId, "context", "completed"));
                 }
             };
 
@@ -63,10 +70,9 @@ public class SummarizationStrategy implements ProcessingStrategy {
                     .replyTo(replyQueue)
                     .build();
 
-            String messageToSend = String.format("{\"text\":\"%s\"}", extractedText);
-            channel.basicPublish("", QUEUE_SUMMARIZATION, props, messageToSend.getBytes(StandardCharsets.UTF_8));
+            channel.basicPublish("", QUEUE_CONTEXT, props, imageBase64.getBytes(StandardCharsets.UTF_8));
 
-            // Attesa della risposta (sincronizzazione)
+            // Attesa della risposta
             while (response[0] == null) {
                 Thread.sleep(100);
             }

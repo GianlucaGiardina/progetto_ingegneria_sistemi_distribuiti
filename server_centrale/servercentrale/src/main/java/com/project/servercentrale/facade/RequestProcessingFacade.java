@@ -1,94 +1,158 @@
 package com.project.servercentrale.facade;
 
 import com.project.servercentrale.controllers.CentralServerController.RequestPayload;
-import com.project.servercentrale.models.RequestResults;
-import com.project.servercentrale.models.RequestState;
-import com.project.servercentrale.repositories.RequestResultsRepository;
-import com.project.servercentrale.repositories.RequestStateRepository;
+import com.project.servercentrale.models.*;
+import com.project.servercentrale.repositories.*;
 import com.project.servercentrale.services.TextExtractionService;
 import com.project.servercentrale.strategy.ProcessingStrategy;
 import com.project.servercentrale.strategy.StrategyFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.CompletableFuture;
 
-/**
- * FACADE:
- * Classe che nasconde la complessità dell'intero processo di "processRequest".
- * Il Controller invoca un solo metodo, e tutta la logica è incapsulata qui.
- */
 @Service
 public class RequestProcessingFacade {
 
     @Autowired
     private RequestStateRepository requestStateRepository;
+
     @Autowired
-    private RequestResultsRepository requestResultsRepository;
+    private PDFProcessingResultRepository pdfProcessingResultRepository;
+
+    @Autowired
+    private ImageProcessingResultRepository imageProcessingResultRepository;
+
+    @Autowired
+    private ProcessingStatusRepository processingStatusRepository;
+
     @Autowired
     private TextExtractionService textExtractionService;
+
     @Autowired
     private StrategyFactory strategyFactory;
 
-    // Gestione thread pool per l'esecuzione in background
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
-
     /**
-     * Metodo principale (entry point) invocato dal Controller.
+     * Processa una richiesta PDF e la invia a Summarization / NLP.
      */
-    public String processRequest(RequestPayload payload) {
-        // 1) Creiamo un nuovo requestId e salviamo lo stato iniziale
-        String requestId = UUID.randomUUID().toString();
-        RequestState requestState = new RequestState(
-                requestId,
-                payload.getUserId(),
-                payload.getFileId(),
-                payload.getServices()
+/**
+ * Processa una richiesta PDF e la invia a Summarization / NLP.
+ */
+public String processPdfRequest(RequestPayload payload) {
+    String requestId = UUID.randomUUID().toString();
+
+    // 1) Salviamo lo stato iniziale della richiesta
+    RequestState requestState = new RequestState(
+            requestId,
+            payload.getUserId(),
+            payload.getFileId(),
+            "pdf",
+            payload.getServices()
+    );
+    requestStateRepository.save(requestState);
+
+    // 2) Elaborazione asincrona del PDF
+    CompletableFuture.supplyAsync(() -> textExtractionService.extractTextFromFile(payload.getFile()))
+    .thenApply(extractedText -> {
+        PDFProcessingResult results = new PDFProcessingResult(
+                requestState.getRequestId(),
+                requestState,
+                extractedText,
+                null,
+                null
         );
-        requestStateRepository.save(requestState);
+        pdfProcessingResultRepository.save(results);
+        return extractedText;
+    })
+    .thenAccept(extractedText -> {
+        List<CompletableFuture<Void>> strategyFutures = new ArrayList<>();
 
-        // 2) Avviamo l'elaborazione asincrona
-        executorService.submit(() -> processInBackground(payload, requestState));
+        for (String serviceName : payload.getServices()) {
+            ProcessingStrategy strategy = strategyFactory.getStrategy(serviceName);
+            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                try {
+                    strategy.process(requestId, extractedText);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+            strategyFutures.add(future);
 
-        // 3) Restituiamo il requestId al chiamante
-        return requestId;
-    }
-
-    /**
-     * Metodo privato che gira in un thread separato
-     */
-    private void processInBackground(RequestPayload payload, RequestState requestState) {
-        try {
-            // 1) Estrazione testo
-            String extractedText = textExtractionService.extractTextFromFile(payload.getFile());
-
-            // 2) Salvataggio risultati iniziali (contenente il testo estratto)
-            RequestResults results = new RequestResults(
-                    requestState.getRequestId(),
-                    requestState,
-                    extractedText,
-                    null,
-                    null
-            );
-            requestResultsRepository.save(results);
-
-            // 3) Per ogni servizio, recuperiamo la STRATEGY corrispondente
-            for (String serviceName : payload.getServices()) {
-                // StrategyFactory ci restituisce la Strategy giusta
-                ProcessingStrategy strategy = strategyFactory.getStrategy(serviceName);
-
-                // Usiamo la Strategy per eseguire la logica
-                strategy.process(requestState.getRequestId(), extractedText);
-            }
-
-        } catch (Exception e) {
-            // Se c'è errore, aggiorniamo manualmente lo stato come "error"
-            // (oppure potremmo avere una strategy "error" se volessimo)
-            requestState.setSummarizationStatus("error: " + e.getMessage());
-            requestState.setNlpStatus("error: " + e.getMessage());
-            requestStateRepository.save(requestState);
+            // Aggiorniamo lo stato a "in_progress"
+            processingStatusRepository.save(new ProcessingStatus(requestId, serviceName, "in_progress"));
         }
+
+        CompletableFuture<Void> allDone = CompletableFuture.allOf(strategyFutures.toArray(new CompletableFuture[0]));
+        allDone.whenComplete((ignored, ex) -> {
+            if (ex != null) {
+                for (String serviceName : payload.getServices()) {
+                    processingStatusRepository.save(new ProcessingStatus(requestId, serviceName, "failed"));
+                }
+            }
+        });
+    })
+    .exceptionally(ex -> {
+        for (String serviceName : payload.getServices()) {
+            processingStatusRepository.save(new ProcessingStatus(requestId, serviceName, "failed"));
+        }
+        return null;
+    });
+
+    return requestId;
+}
+/**
+ * Processa una richiesta immagine e la invia a Context Extraction.
+ */
+public String processImageRequest(RequestPayload payload) {
+    String requestId = UUID.randomUUID().toString();
+
+    // 1) Salviamo lo stato iniziale della richiesta
+    RequestState requestState = new RequestState(
+            requestId,
+            payload.getUserId(),
+            payload.getFileId(),
+            "image",
+            payload.getServices()
+    );
+    requestStateRepository.save(requestState);
+
+    // 2) Avviamo l'elaborazione asincrona dell'immagine con la Strategy corretta
+    List<CompletableFuture<Void>> strategyFutures = new ArrayList<>();
+
+    for (String serviceName : payload.getServices()) {
+        ProcessingStrategy strategy = strategyFactory.getStrategy(serviceName);
+
+        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+            try {
+                strategy.process(requestId, payload.getFile());
+            } catch (Exception e) {
+                e.printStackTrace();
+                processingStatusRepository.save(new ProcessingStatus(requestId, serviceName, "failed"));
+            }
+        });
+
+        strategyFutures.add(future);
+        processingStatusRepository.save(new ProcessingStatus(requestId, serviceName, "in_progress"));
     }
+
+    // 3) Attendi il completamento di tutte le strategie
+    CompletableFuture<Void> allDone = CompletableFuture.allOf(strategyFutures.toArray(new CompletableFuture[0]));
+    allDone.whenComplete((ignored, ex) -> {
+        if (ex != null) {
+            for (String serviceName : payload.getServices()) {
+                processingStatusRepository.save(new ProcessingStatus(requestId, serviceName, "failed"));
+            }
+        } else {
+            processingStatusRepository.save(new ProcessingStatus(requestId, "context", "completed"));
+        }
+    });
+
+    return requestId;
+}
+
+
+    
 }

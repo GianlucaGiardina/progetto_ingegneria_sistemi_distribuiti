@@ -1,6 +1,7 @@
 import os
 import uuid
 import pika
+import base64
 
 from flask import Flask, render_template, request, redirect, url_for, flash
 
@@ -9,76 +10,89 @@ app.secret_key = '1234'  # Necessario per i flash messages
 
 # Parametri di connessione RabbitMQ
 RABBIT_HOST = os.environ.get("RABBIT_HOST", "localhost")
-RABBIT_QUEUE = os.environ.get("RABBIT_QUEUE", "test_queue")
+RABBIT_QUEUE = os.environ.get("RABBIT_QUEUE", "extractcontext_queue")
 RABBIT_USER = os.environ.get("RABBITMQ_DEFAULT_USER", "user")
 RABBIT_PASS = os.environ.get("RABBITMQ_DEFAULT_PASS", "pass")
-
-def call_summarization_rpc(message):
+def send_image_and_get_reply(image_base64: str) -> str:
     """
-    Invia il testo da riassumere (message) al consumer tramite RabbitMQ
-    e attende la risposta (il riassunto) usando la direct-reply-to queue.
+    Invia l'immagine in Base64 al consumer tramite RabbitMQ in modalità RPC (reply-to)
+    e attende la risposta dal consumer.
     """
-    # 1) Connessione
-    credentials = pika.PlainCredentials(RABBIT_USER, RABBIT_PASS)
-    parameters = pika.ConnectionParameters(host=RABBIT_HOST, credentials=credentials)
-    connection = pika.BlockingConnection(parameters)
-    channel = connection.channel()
+    try:
+        credentials = pika.PlainCredentials(RABBIT_USER, RABBIT_PASS)
+        parameters = pika.ConnectionParameters(host=RABBIT_HOST, credentials=credentials)
+        connection = pika.BlockingConnection(parameters)
+        channel = connection.channel()
 
-    # 2) Generiamo un correlation_id univoco per tracciare la risposta
-    correlation_id = str(uuid.uuid4())
+        # Dichiarazione coda (crea la coda se non esiste)
+        channel.queue_declare(queue=RABBIT_QUEUE, durable=False)
 
-    # Variabile dove salvare il risultato della summarization
-    response = None
+        correlation_id = str(uuid.uuid4())
+        result_container = {"result": None}
 
-    # Callback locale chiamata quando arriva un messaggio sulla coda di reply_to
-    def on_response(ch, method, props, body):
-        nonlocal response
-        # Verifichiamo che la risposta abbia lo stesso correlation_id
-        if props.correlation_id == correlation_id:
-            response = body.decode('utf-8')
+        def on_response(ch, method, props, body):
+            if props.correlation_id == correlation_id:
+                result_container["result"] = body.decode('utf-8')
+                ch.stop_consuming()
 
-    # 3) Consumiamo i messaggi sulla "pseudo-coda" amq.rabbitmq.reply-to
-    # con auto_ack=True (qui non serve ack su risposte).
-    channel.basic_consume(
-        queue='amq.rabbitmq.reply-to',
-        on_message_callback=on_response,
-        auto_ack=True
-    )
+        # Sottoscriviamo la callback su 'amq.rabbitmq.reply-to'
+        channel.basic_consume(
+            queue='amq.rabbitmq.reply-to',
+            on_message_callback=on_response,
+            auto_ack=True
+        )
 
-    # 4) Pubblica il messaggio con la proprietà reply_to e correlation_id
-    channel.basic_publish(
-        exchange='',
-        routing_key=RABBIT_QUEUE,
-        properties=pika.BasicProperties(
-            reply_to='amq.rabbitmq.reply-to',
-            correlation_id=correlation_id,
-        ),
-        body=message.encode('utf-8')
-    )
+        channel.basic_publish(
+            exchange='',
+            routing_key=RABBIT_QUEUE,
+            properties=pika.BasicProperties(
+                reply_to='amq.rabbitmq.reply-to',
+                correlation_id=correlation_id
+            ),
+            body=image_base64.encode('utf-8')
+        )
 
-    # 5) Aspetta finché non arriva la risposta con lo stesso correlation_id
-    while response is None:
-        connection.process_data_events()  # Lascia elaborare gli eventi di rete
+        channel.start_consuming()
+        connection.close()
 
-    # Chiudiamo la connessione
-    connection.close()
-    return response
+        return result_container["result"]
+
+    except Exception as e:
+        print(f"Errore nell'invio/attesa risposta: {e}")
+        return None
+
 
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        text = request.form['text']
-        if text:
-            try:
-                # Chiamata sincrona RPC
-                summary = call_summarization_rpc(text)
-                flash(f"Riassunto ricevuto:\n{summary}", 'success')
-            except Exception as e:
-                flash(f"Errore durante l'invio/ricezione da RabbitMQ: {e}", 'danger')
-        else:
-            flash('Il campo di testo è vuoto. Inserisci un messaggio.', 'danger')
+        if 'image' not in request.files:
+            flash('Nessun file selezionato.', 'danger')
+            return redirect(url_for('index'))
+
+        file = request.files['image']
+        if file.filename == '':
+            flash('Seleziona un file prima di inviare.', 'danger')
+            return redirect(url_for('index'))
+
+        try:
+            # 1) Leggi l'immagine e converti in Base64
+            image_base64 = base64.b64encode(file.read()).decode('utf-8')
+
+            # 2) Invia l'immagine a RabbitMQ e attendi la risposta
+            result = send_image_and_get_reply(image_base64)
+
+            if result is not None:
+                flash('Immagine inviata con successo a RabbitMQ.', 'success')
+                flash(f"Risposta ricevuta dal consumer: {result}", 'info')
+            else:
+                flash('Errore durante l\'invio o la ricezione della risposta.', 'danger')
+
+        except Exception as e:
+            flash(f"Errore durante l'elaborazione dell'immagine: {e}", 'danger')
+
         return redirect(url_for('index'))
+
     return render_template('index.html')
 
 

@@ -1,5 +1,5 @@
-package com.project.servercentrale.repositories;
 
+package com.project.servercentrale.repositories;
 
 import com.project.servercentrale.models.RequestState;
 
@@ -12,4 +12,6 @@ import org.springframework.stereotype.Repository;
 public interface RequestStateRepository extends MongoRepository<RequestState, String> {
 
     List<RequestState> findByUserId(String userId);
+
+    RequestState findByRequestId(String requestId);
 }
