@@ -86,6 +86,7 @@ public String processPdfRequest(RequestPayload payload) {
         allDone.whenComplete((ignored, ex) -> {
             if (ex != null) {
                 for (String serviceName : payload.getServices()) {
+                    System.out.println(ex);
                     processingStatusRepository.save(new ProcessingStatus(requestId, serviceName, "failed"));
                 }
             }
@@ -93,6 +94,7 @@ public String processPdfRequest(RequestPayload payload) {
     })
     .exceptionally(ex -> {
         for (String serviceName : payload.getServices()) {
+            System.out.println(ex);
             processingStatusRepository.save(new ProcessingStatus(requestId, serviceName, "failed"));
         }
         return null;
