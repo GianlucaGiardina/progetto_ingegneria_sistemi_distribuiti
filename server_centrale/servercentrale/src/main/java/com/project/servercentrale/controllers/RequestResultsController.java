@@ -5,7 +5,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.project.servercentrale.models.RequestResults;
 import com.project.servercentrale.repositories.RequestResultsRepository;
-import java.util.Optional;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/results")
@@ -18,13 +19,15 @@ public class RequestResultsController {
 
     @GetMapping("/get")
     public ResponseEntity<?> getResults(@RequestParam String requestId) {
-        Optional<RequestResults> results = requestResultsRepository.findById(requestId);
-        if (results.isPresent()) {
-            return ResponseEntity.ok(results.get());
+        List<RequestResults> results = requestResultsRepository.findAllByRequestId(requestId);
+    
+        if (!results.isEmpty()) {
+            return ResponseEntity.ok(results);
         } else {
-            return ResponseEntity.badRequest().body("{" + "\"error\": \"Results not found\"}" );
+            return ResponseEntity.badRequest().body("{\"error\": \"Results not found\"}");
         }
     }
+    
     
   
     

@@ -1,11 +1,19 @@
 import base64
 import io
+import re
 from flask import Flask, request, jsonify
 from pdfminer.high_level import extract_text
 
 app = Flask(__name__)
 
-@app.route('/apii/extract/text', methods=['POST'])
+def clean_text(text):
+    """Rimuove spazi inutili, nuove righe multiple e caratteri speciali."""
+    text = text.replace("\n", " ")  # Sostituisce \n con spazio
+    text = text.replace("\t", " ")  # Sostituisce \t con spazio
+    text = re.sub(r'\s+', ' ', text)  # Rimuove spazi multipli
+    return text.strip()
+
+@app.route('/extract/text', methods=['POST'])
 def extract_text_from_pdf():
     try:
         # Controlla il tipo di contenuto
@@ -24,7 +32,10 @@ def extract_text_from_pdf():
         # Estrai il testo
         extracted_text = extract_text(pdf_stream)
 
-        return jsonify({"extracted_text": extracted_text})
+        # Pulisce il testo estratto
+        cleaned_text = clean_text(extracted_text)
+
+        return jsonify({"extracted_text": cleaned_text})
     
     except Exception as e:
         return jsonify({"error": str(e)}), 500

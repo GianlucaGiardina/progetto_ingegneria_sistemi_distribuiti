@@ -11,16 +11,22 @@ public class StrategyFactory {
 
     @Autowired
     private SummarizationStrategy summarizationStrategy;
+    
     @Autowired
     private NlpStrategy nlpStrategy;
+    
+    @Autowired
+    private ContextExtractionStrategy contextExtractionStrategy;
 
     public ProcessingStrategy getStrategy(String serviceName) {
         if ("summarization".equalsIgnoreCase(serviceName)) {
             return summarizationStrategy;
         } else if ("nlp".equalsIgnoreCase(serviceName)) {
             return nlpStrategy;
+        } else if ("context".equalsIgnoreCase(serviceName)) {
+            return contextExtractionStrategy;
         } else {
-            // In caso di servizio sconosciuto, potresti lanciare eccezione
+            // In caso di servizio sconosciuto, lanciamo un'eccezione
             throw new IllegalArgumentException("Servizio sconosciuto: " + serviceName);
         }
     }
