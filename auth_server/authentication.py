@@ -41,8 +41,9 @@ def register():
     # Hash password and insert user
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
     users.insert_one({"username": username, "password": hashed_password})
-
-    return jsonify({"message": "User registered successfully"}), 201
+    resp = jsonify({"message": "User registered successfully"})
+    resp.set_cookie('username', username)
+    return resp, 201
   elif request.method == 'GET':
     return jsonify({"message": "Register a new user"}), 200
 
@@ -68,6 +69,7 @@ def login():
         access_token = create_access_token(identity=str(user['_id']), expires_delta=timedelta(minutes=15))
         resp = jsonify({"message": "Login Success"})
         set_access_cookies(resp, access_token)
+        resp.set_cookie('username', username)
         return resp, 200
     else:
         return jsonify({"error": "Invalid username or password"}), 401
@@ -77,10 +79,8 @@ def login():
 @app.route('/api/validate_token', methods=['GET'])
 @jwt_required()
 def validate_token():
-  print("Validating token")
   current_user = get_jwt_identity()
-  print(current_user)
   return jsonify({"valid": True, "user": current_user}), 200
   
 if __name__ == '__main__':
-  serve(app, host="0.0.0.0", port=5002)
+  serve(app, host="0.0.0.0", port=3001)

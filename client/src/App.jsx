@@ -32,7 +32,7 @@ function App() {
 
   return (
     <>
-      <div className="w-lvw h-lvh flex items-center justify-center">
+      <div className="w-lvw h-lvh">
         <BrowserRouter>
           <Routes>
             <Route
