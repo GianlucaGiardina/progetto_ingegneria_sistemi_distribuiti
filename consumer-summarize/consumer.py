@@ -1,100 +1,116 @@
-import base64
-import io
 import os
-import sys
-
 import pika
-from PIL import Image
-from transformers import pipeline
+import logging
 
-# Parametri di connessione RabbitMQ (modifica secondo la tua config o variabili d'ambiente)
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+
+# Configurazione Logger
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Scegli un modello T5 più potente: "google/flan-t5-large"
+MODEL_NAME = "google/flan-t5-large"
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
+
+# Parametri di connessione RabbitMQ
 RABBIT_HOST = os.environ.get("RABBIT_HOST", "localhost")
-RABBIT_QUEUE = os.environ.get("RABBIT_QUEUE", "extractcontext_queue")
+RABBIT_QUEUE = os.environ.get("RABBIT_QUEUE", "test_queue")
 RABBIT_USER = os.environ.get("RABBITMQ_DEFAULT_USER", "user")
 RABBIT_PASS = os.environ.get("RABBITMQ_DEFAULT_PASS", "pass")
 
-# Carichiamo (una sola volta) la pipeline "image-to-text"
-captioner = pipeline(
-    "image-to-text",
-    model="./vit-gpt2-image-captioning"  # Cartella o path locale del modello
-)
 
-def load_image_from_base64(b64_string: str) -> Image.Image:
+def summarize_text(text):
     """
-    Decodifica una stringa Base64 e la trasforma in un oggetto PIL.Image.
+    Funzione di summarization usando un modello T5 più potente (Flan-T5-Large).
     """
-    image_data = base64.b64decode(b64_string)
-    return Image.open(io.BytesIO(image_data)).convert("RGB")
+    # Prompt di summarization in stile T5
+    input_text = "summarize: " + text
 
-def describe_image_with_model(image_b64: str) -> str:
+    inputs = tokenizer.encode(
+        input_text,
+        return_tensors="pt",
+        max_length=512,
+        truncation=True
+    )
+
+    summary_ids = model.generate(
+        inputs,
+        max_length=256,
+        min_length=40,
+        length_penalty=2.0,
+        num_beams=4,
+        early_stopping=True,
+        no_repeat_ngram_size=3
+    )
+
+    summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+    return summary
+
+
+def callback(ch, method, properties, body):
     """
-    Riceve un'immagine in Base64, la decodifica e genera una caption
-    con un modello di image captioning in locale.
+    Callback invocata quando arriva un messaggio da RabbitMQ.
     """
-    pil_img = load_image_from_base64(image_b64)
-    result = captioner(pil_img)  # Restituisce una lista di dict, es: [{'generated_text': '...'}]
-    if len(result) > 0 and 'generated_text' in result[0]:
-        return result[0]['generated_text']
-    return "Nessuna descrizione disponibile."
+    message = body.decode("utf-8")
+    logger.info(f"Messaggio ricevuto: {message}")
 
-def on_message_callback(ch, method, properties, body):
-    """
-    Callback invocato quando arriva un messaggio sulla coda 'extractcontext_queue'.
-    """
-    try:
-        # 1) Estraggo il Base64 dell'immagine dal body
-        base64_str = body.decode('utf-8')
+    # Esegui la summarization
+    summary = summarize_text(message)
+    logger.info(f"Riassunto generato: {summary}")
 
-        # 2) Eseguo l'estrazione del contesto con il modello
-        description = describe_image_with_model(base64_str)
+    # Se è una richiesta "RPC" con direct-reply-to, restituisci il risultato
+    if properties.reply_to:
+        # Pubblica la risposta nella coda "amq.rabbitmq.reply-to"
+        ch.basic_publish(
+            exchange='',
+            routing_key=properties.reply_to,
+            properties=pika.BasicProperties(correlation_id=properties.correlation_id),
+            body=summary.encode('utf-8')
+        )
 
-        # 3) Verifico se è una richiesta RPC (direct-reply-to)
-        if properties.reply_to:
-            # Se è una richiesta "RPC" con direct-reply-to, restituisco il risultato
-            ch.basic_publish(
-                exchange='',
-                routing_key=properties.reply_to,
-                properties=pika.BasicProperties(
-                    correlation_id=properties.correlation_id
-                ),
-                body=description.encode('utf-8')
-            )
-        else:
-            # Altrimenti, inoltro la descrizione nella coda 'replay'
-            ch.basic_publish(
-                exchange='',
-                routing_key='replay',
-                body=description.encode('utf-8')
-            )
+    # Confermiamo il messaggio come elaborato
+    ch.basic_ack(delivery_tag=method.delivery_tag)
 
-        # 4) Confermo l'elaborazione
-        ch.basic_ack(delivery_tag=method.delivery_tag)
-
-    except Exception as e:
-        print(f"Errore durante la descrizione dell'immagine: {e}", file=sys.stderr)
-        # In caso di errore, posso scartare o re-inviare il messaggio
-        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
 def main():
-    # 1. Connessione a RabbitMQ
+    """
+    Configura il consumer su RabbitMQ e attende nuovi messaggi.
+    """
+    logger.info("Connessione a RabbitMQ...")
     credentials = pika.PlainCredentials(RABBIT_USER, RABBIT_PASS)
     parameters = pika.ConnectionParameters(host=RABBIT_HOST, credentials=credentials)
+
     connection = pika.BlockingConnection(parameters)
     channel = connection.channel()
 
-    # 2. Assicuriamoci che le code esistano
-    channel.queue_declare(queue='extractcontext_queue')
-    channel.queue_declare(queue='replay')  # coda per le risposte "standard"
+    # Assicuriamoci che la coda esista
+    channel.queue_declare(queue=RABBIT_QUEUE, durable=True)
 
-    # 3. Consumiamo messaggi dalla coda 'extractcontext_queue'
-    channel.basic_qos(prefetch_count=1)
-    channel.basic_consume(
-        queue='extractcontext_queue',
-        on_message_callback=on_message_callback
-    )
+    logger.info(f"Avvio consumer sulla coda: {RABBIT_QUEUE}")
+    channel.basic_consume(queue=RABBIT_QUEUE, on_message_callback=callback)
 
-    print(" [*] In attesa di messaggi su 'extractcontext_queue'. Per interrompere: CTRL+C")
-    channel.start_consuming()
+    try:
+        channel.start_consuming()
+    except KeyboardInterrupt:
+        logger.info("Arresto consumer...")
+    finally:
+        connection.close()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
