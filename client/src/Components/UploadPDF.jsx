@@ -16,6 +16,7 @@ export const UploadPDF = ({ className }) => {
   const [nlp, setNlp] = useState(false);
   const [context, setContext] = useState(false);
   const [services, setServices] = useState([]);
+  const [request_id, setRequestId] = useState(null);
   const user_id = Cookies.get("username");
 
   const fileInputRef = useRef(null);
@@ -31,7 +32,9 @@ export const UploadPDF = ({ className }) => {
 
         reader.onloadend = () => {
           setFile(reader.result);
-          setFileType(selectedFile.type);
+          setFileType(
+            selectedFile.type === "application/pdf" ? "pdf" : "image"
+          );
         };
 
         reader.readAsDataURL(selectedFile);
@@ -58,7 +61,7 @@ export const UploadPDF = ({ className }) => {
     setIsProcessing(false);
 
     const endpoint =
-      fileType === "application/pdf"
+      fileType === "pdf"
         ? process.env["UPLOAD_PDF_URL"]
         : process.env["UPLOAD_IMAGE_URL"];
 
@@ -85,6 +88,8 @@ export const UploadPDF = ({ className }) => {
         setIsProcessing(true);
         pollForProcessingStatus();
       }
+      //verificare se è corretto
+      setRequestId(data.request_id);
     } catch (error) {
       console.error(error);
       setIsSending(false);
@@ -95,7 +100,7 @@ export const UploadPDF = ({ className }) => {
     const interval = setInterval(async () => {
       try {
         const response = await fetch(
-          `${process.env["STATUS_URL"]}?userId=${user_id}`
+          `${process.env["STATUS_URL"]}?requestId=${request_id}`
         );
         const data = await response.json();
 
@@ -156,7 +161,7 @@ export const UploadPDF = ({ className }) => {
             </div>
           </Form.Group>
 
-          {fileType === "application/pdf" && (
+          {fileType === "pdf" && (
             <>
               <Form.Check
                 type="checkbox"
@@ -180,7 +185,7 @@ export const UploadPDF = ({ className }) => {
               />
             </>
           )}
-          {(fileType === "image/png" || fileType === "image/jpeg") && (
+          {fileType === "image" && (
             <Form.Check
               type="checkbox"
               label="Context"
