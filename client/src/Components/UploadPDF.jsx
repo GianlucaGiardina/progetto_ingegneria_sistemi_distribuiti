@@ -38,6 +38,7 @@ export const UploadPDF = ({ className }) => {
         };
 
         reader.readAsDataURL(selectedFile);
+        calculateFileHash(selectedFile).then((hash) => setFileHash(hash));
         setFileHash(calculateFileHash(selectedFile));
       } else {
         alert(
@@ -66,6 +67,7 @@ export const UploadPDF = ({ className }) => {
         : process.env["UPLOAD_IMAGE_URL"];
 
     try {
+      console.log(endpoint);
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {

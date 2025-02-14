@@ -120,6 +120,15 @@ services:
       - "8080:8080"
   client_test:
     build:
+      context: ./client_test
+      dockerfile: Dockerfile
+    container_name: client_test
+    depends_on:
+      - server_centrale_springboot
+    ports:
+      - "5000:5000"
+  auth_server:
+    build:
       context: ./auth_server
       dockerfile: Dockerfile
     container_name: auth_server
