@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Spinner } from "react-bootstrap";
 import Button from "react-bootstrap/Button";
 import Form from "react-bootstrap/Form";
@@ -16,10 +16,16 @@ export const UploadPDF = ({ className }) => {
   const [nlp, setNlp] = useState(false);
   const [context, setContext] = useState(false);
   const [services, setServices] = useState([]);
-  const [request_id, setRequestId] = useState(null);
+  const [requestId, setRequestId] = useState(null);
   const user_id = Cookies.get("username");
 
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (requestId) {
+      pollForProcessingStatus();
+    }
+  }, [requestId]);
 
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
@@ -82,16 +88,9 @@ export const UploadPDF = ({ className }) => {
       });
 
       const data = await response.json();
+      setRequestId(data.requestId);
       setIsSending(false);
-
-      if (data.success) {
-        setIsDone(true);
-      } else {
-        setIsProcessing(true);
-        pollForProcessingStatus();
-      }
-      //verificare se è corretto
-      setRequestId(data.request_id);
+      setIsProcessing(true);
     } catch (error) {
       console.error(error);
       setIsSending(false);
@@ -102,7 +101,7 @@ export const UploadPDF = ({ className }) => {
     const interval = setInterval(async () => {
       try {
         const response = await fetch(
-          `${process.env["STATUS_URL"]}?requestId=${request_id}`
+          `${process.env["STATUS_URL"]}?requestId=${requestId}`
         );
         const data = await response.json();
 
