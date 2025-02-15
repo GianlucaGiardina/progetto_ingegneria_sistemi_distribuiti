@@ -6,7 +6,7 @@ from flask import Flask, render_template, request, jsonify
 app = Flask(__name__)
 
 # URL del server Spring Boot
-BASE_URL = "http://localhost:8080/api"
+BASE_URL = "http://host.docker.internal:8080/api"
 UPLOAD_PDF_URL = f"{BASE_URL}/process_pdf"
 UPLOAD_IMAGE_URL = f"{BASE_URL}/process_image"
 STATUS_URL = f"{BASE_URL}/status/getByUserId"
