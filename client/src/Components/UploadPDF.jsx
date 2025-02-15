@@ -37,7 +37,11 @@ export const UploadPDF = ({ className }) => {
         const reader = new FileReader();
 
         reader.onloadend = () => {
-          setFile(reader.result);
+          const base64 =
+            typeof reader.result === "string"
+              ? reader.result.split(",")[1]
+              : "";
+          setFile(base64);
           setFileType(
             selectedFile.type === "application/pdf" ? "pdf" : "image"
           );
@@ -73,7 +77,6 @@ export const UploadPDF = ({ className }) => {
         : process.env["UPLOAD_IMAGE_URL"];
 
     try {
-      console.log(endpoint);
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
