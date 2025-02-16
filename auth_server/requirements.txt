@@ -4,4 +4,4 @@ flask_cors
 Flask-JWT-Extended
 python-dotenv
 pymongo
-pyopenssl
+waitress

@@ -151,7 +151,7 @@ services:
     depends_on:
       - server_centrale_springboot
     ports:
-      - "443:443"
+      - "80:80"
 
   auth_server:
     build:

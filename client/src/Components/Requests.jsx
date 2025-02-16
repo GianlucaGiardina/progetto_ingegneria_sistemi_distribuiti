@@ -15,7 +15,7 @@ export const Requests = () => {
     fetch(endpoint, { method: "GET" })
       .then((response) => response.json())
       .then((data) => {
-        const reversedData = data.slice().reverse();
+        const reversedData = Array.isArray(data) ? data.slice().reverse() : [];
         setRequests(reversedData);
 
         if (uploadSignal) {

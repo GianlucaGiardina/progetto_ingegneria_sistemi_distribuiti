@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import mkcert from "vite-plugin-mkcert";
 import { config } from "dotenv";
 
 // Load environment variables from .env file
@@ -9,14 +8,13 @@ config();
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss(), mkcert()],
+  plugins: [react(), tailwindcss()],
   define: {
     "process.env": process.env,
   },
   server: {
     host: "0.0.0.0",
-    port: 443,
-    https: true,
+    port: 80,
     headers: {
       "access-control-allow-origin": "*",
       "access-control-allow-headers": "*",
