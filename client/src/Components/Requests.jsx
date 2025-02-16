@@ -63,14 +63,15 @@ export const Requests = () => {
   }, [uploadSignal]);
 
   return (
-    <div className="mt-40 mr-10 h-96 overflow-y-scroll">
+    <div className="mt-40 h-96 overflow-y-scroll">
       <Table striped bordered hover>
         <thead>
           <tr>
             <th>Request Id</th>
-            <th>File Name</th>
+            <th className="w-5">File Name</th>
             <th>Summarization</th>
             <th>NLP</th>
+            <th>Context</th>
           </tr>
         </thead>
         <tbody>
@@ -78,9 +79,14 @@ export const Requests = () => {
             <tr key={request.requestId}>
               <td>{request.requestId}</td>
               <td>
-                <a href={`/results/text-extraction/${request.requestId}`}>
-                  {request.fileName}
-                </a>
+                {request.services.includes("summarization") ||
+                request.services.includes("nlp") ? (
+                  <a href={`/results/text-extraction/${request.requestId}`}>
+                    {request.fileName}
+                  </a>
+                ) : (
+                  request.fileName
+                )}
               </td>
               <td>
                 {loadingRequests.has(request.requestId) ? (
@@ -112,6 +118,27 @@ export const Requests = () => {
                       <span className="w-3 h-3 bg-green-500 rounded-full inline-block mr-2"></span>
                       <a
                         href={`/results/nlp/${request.requestId}`}
+                        className="text-blue-500 -mt-2.5"
+                      >
+                        Visualizza
+                      </a>
+                    </div>
+                  ) : (
+                    <span className="w-3 h-3 bg-blue-500 rounded-full inline-block animate-pulse duration-2000 ease-in-out"></span>
+                  )
+                ) : (
+                  "Non richiesto"
+                )}
+              </td>
+              <td>
+                {loadingRequests.has(request.requestId) ? (
+                  <Spinner animation="border" size="sm" variant="secondary" />
+                ) : request.serviceStatuses.context ? (
+                  request.serviceStatuses.context === "completed" ? (
+                    <div>
+                      <span className="w-3 h-3 bg-green-500 rounded-full inline-block mr-2"></span>
+                      <a
+                        href={`/results/context/${request.requestId}`}
                         className="text-blue-500 -mt-2.5"
                       >
                         Visualizza

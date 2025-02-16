@@ -30,6 +30,9 @@ export const Results = ({ service }) => {
             res.push([match[1], match[2]]);
           }
           setResults(res);
+        } else if (service === "context") {
+          const res = data.contextResult;
+          setResults(res);
         }
       });
   };
@@ -38,11 +41,21 @@ export const Results = ({ service }) => {
     fetchResults();
   }, []);
 
-  if (service === "text-extraction" || service === "summarization") {
+  if (
+    service === "text-extraction" ||
+    service === "summarization" ||
+    service === "context"
+  ) {
     return (
       <>
         <h1 className="w-full text-center">
-          {service === "text-extraction" ? "Testo" : "Riassunto"}
+          {service === "text-extraction"
+            ? "Testo"
+            : service === "summarization"
+            ? "Riassunto"
+            : service === "context"
+            ? "Context"
+            : ""}
         </h1>
         <div className="min-w-full absolute flex justify-center">
           <div className="max-w-fit border-2 mt-2 p-2">{results}</div>

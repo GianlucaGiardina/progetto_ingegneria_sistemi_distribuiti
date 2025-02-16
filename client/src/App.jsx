@@ -134,6 +134,20 @@ function App() {
                 )
               }
             />
+            <Route
+              path="/results/context/:requestId"
+              element={
+                !isLoading ? (
+                  isLoggedIn ? (
+                    <Results service="context" />
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                ) : (
+                  <div></div>
+                )
+              }
+            />
           </Routes>
         </BrowserRouter>
       </div>
