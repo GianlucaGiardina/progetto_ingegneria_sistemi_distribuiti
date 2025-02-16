@@ -27,8 +27,5 @@ public class RequestResultsController {
             return ResponseEntity.badRequest().body("{\"error\": \"Results not found\"}");
         }
     }
-    
-    
-  
-    
+
 }

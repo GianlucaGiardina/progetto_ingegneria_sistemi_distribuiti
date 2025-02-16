@@ -6,12 +6,18 @@ services:
     container_name: rabbitmq
     ports:
       - "5672:5672" # Porta AMQP
-      - "15672:15672" # Porta Management Console di RabbitMQ
+      - "15672:15672" # Management Console di RabbitMQ
     environment:
       RABBITMQ_DEFAULT_USER: user
       RABBITMQ_DEFAULT_PASS: pass
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   mongodb:
     image: mongo:6.0
@@ -24,15 +30,23 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: adminpass
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh mongodb://admin:adminpass@localhost:27017 --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  producer: # SOLAMENTE PER TESTARE IL CONSUMER SUMMARIZER
+  producer:
     build:
       context: ./producer
       dockerfile: Dockerfile
     container_name: producer
     depends_on:
-      - rabbitmq
-      - mongodb
+      rabbitmq:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
     ports:
       - "9091:9091"
     environment:
@@ -42,39 +56,46 @@ services:
       RABBITMQ_DEFAULT_PASS: pass
       MONGO_URI: mongodb://admin:adminpass@mongodb:27017
 
-  consumersummarize: #Consumer summarizer
+  consumersummarize:
     build:
       context: ./consumer-summarize
       dockerfile: Dockerfile
     container_name: consumersummarize
     depends_on:
-      - rabbitmq
-      - mongodb
+      rabbitmq:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
     environment:
       RABBIT_HOST: rabbitmq
       RABBIT_QUEUE: summarize_queue
       MONGO_URI: mongodb://admin:adminpass@mongodb:27017
 
-  consumernlp: #Consumer summarizer
+  consumernlp:
     build:
       context: ./consumer-nlp
       dockerfile: Dockerfile
     container_name: consumernlp
     depends_on:
-      - rabbitmq
-      - mongodb
+      rabbitmq:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
     environment:
       RABBIT_HOST: rabbitmq
       RABBIT_QUEUE: nlp_queue
       MONGO_URI: mongodb://admin:adminpass@mongodb:27017
-  consumerimagecontext: #Consumer summarizer
+
+  consumerimagecontext:
     build:
       context: ./consumer-imagecontext
       dockerfile: Dockerfile
     container_name: consumerimagecontext
     depends_on:
-      - rabbitmq
-      - mongodb
+      rabbitmq:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
     environment:
       RABBIT_HOST: rabbitmq
       RABBIT_QUEUE: context_queue
@@ -85,18 +106,21 @@ services:
       dockerfile: Dockerfile
     container_name: extract_text_service
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     ports:
       - "5001:5001"
 
-  server_centrale_springboot: #Consumer summarizer
+  server_centrale_springboot:
     build:
       context: ./server_centrale_springboot
       dockerfile: Dockerfile
     container_name: server_centrale_springboot
     depends_on:
-      - rabbitmq
-      - mongodb
+      rabbitmq:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
     environment:
       # Spring Boot Config
       - SPRING_APPLICATION_NAME=servercentrale
@@ -118,6 +142,7 @@ services:
       - RABBITMQ_QUEUE_CONTEXT=context_queue
     ports:
       - "8080:8080"
+
   client_test:
     build:
       context: ./client_test
@@ -127,6 +152,7 @@ services:
       - server_centrale_springboot
     ports:
       - "5000:5000"
+
   auth_server:
     build:
       context: ./auth_server

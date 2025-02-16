@@ -1,15 +1,15 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useContext } from "react";
 import { Spinner } from "react-bootstrap";
 import Button from "react-bootstrap/Button";
 import Form from "react-bootstrap/Form";
 import Cookies from "js-cookie";
 import { calculateFileHash } from "../utils/file";
+import { UploadContext } from "./Pages/Dashboard";
 
 export const UploadPDF = ({ className }) => {
   const [isSending, setIsSending] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isDone, setIsDone] = useState(false);
   const [file, setFile] = useState(null);
+  const [fileName, setFileName] = useState(null);
   const [fileHash, setFileHash] = useState(null);
   const [fileType, setFileType] = useState(null);
   const [summarization, setSummarization] = useState(false);
@@ -18,14 +18,9 @@ export const UploadPDF = ({ className }) => {
   const [services, setServices] = useState([]);
   const [requestId, setRequestId] = useState(null);
   const user_id = Cookies.get("username");
+  const { uploadSignal, setUploadSignal } = useContext(UploadContext);
 
   const fileInputRef = useRef(null);
-
-  useEffect(() => {
-    if (requestId) {
-      pollForProcessingStatus();
-    }
-  }, [requestId]);
 
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
@@ -42,6 +37,7 @@ export const UploadPDF = ({ className }) => {
               ? reader.result.split(",")[1]
               : "";
           setFile(base64);
+          setFileName(selectedFile.name);
           setFileType(
             selectedFile.type === "application/pdf" ? "pdf" : "image"
           );
@@ -67,9 +63,17 @@ export const UploadPDF = ({ className }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!file) {
+      alert("Seleziona un file valido!");
+      return;
+    }
+
+    if (services.length === 0) {
+      alert("Seleziona almeno un servizio!");
+      return;
+    }
+
     setIsSending(true);
-    setIsDone(false);
-    setIsProcessing(false);
 
     const endpoint =
       fileType === "pdf"
@@ -83,6 +87,7 @@ export const UploadPDF = ({ className }) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          fileName: fileName,
           file: file,
           userId: user_id,
           fileId: fileHash,
@@ -93,31 +98,12 @@ export const UploadPDF = ({ className }) => {
       const data = await response.json();
       setRequestId(data.requestId);
       setIsSending(false);
-      setIsProcessing(true);
+      setUploadSignal(true);
+      handleClear(e);
     } catch (error) {
       console.error(error);
       setIsSending(false);
     }
-  };
-
-  const pollForProcessingStatus = async () => {
-    const interval = setInterval(async () => {
-      try {
-        const response = await fetch(
-          `${process.env["STATUS_URL"]}?requestId=${requestId}`
-        );
-        const data = await response.json();
-
-        // Verificare cosa ritorna il server
-        if (data.status === "done") {
-          setIsProcessing(false);
-          setIsDone(true);
-          clearInterval(interval);
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    }, 5000);
   };
 
   const handleClear = async (e) => {
@@ -147,20 +133,6 @@ export const UploadPDF = ({ className }) => {
               />
               {isSending && (
                 <Spinner animation="border" role="status" size="sm" />
-              )}
-              {(isProcessing || isDone) && (
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  fill="currentColor"
-                  className={`bi bi-circle-fill ${
-                    isProcessing ? "text-gray-400" : ""
-                  } ${isDone ? "text-green-400" : ""}`}
-                  viewBox="0 0 16 16"
-                >
-                  <circle cx="8" cy="8" r="8" />
-                </svg>
               )}
             </div>
           </Form.Group>

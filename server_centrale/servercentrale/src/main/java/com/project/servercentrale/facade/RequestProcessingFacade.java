@@ -46,6 +46,7 @@ public String processPdfRequest(RequestPayload payload) {
             requestId,
             payload.getUserId(),
             payload.getFileId(),
+            payload.getFileName(),
             "pdf",
             payload.getServices()
     );
@@ -113,6 +114,7 @@ public String processImageRequest(RequestPayload payload) {
             requestId,
             payload.getUserId(),
             payload.getFileId(),
+            payload.getFileName(),
             "image",
             payload.getServices()
     );

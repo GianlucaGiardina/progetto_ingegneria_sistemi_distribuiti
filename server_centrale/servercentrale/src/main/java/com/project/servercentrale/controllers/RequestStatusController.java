@@ -39,6 +39,7 @@ public class RequestStatusController {
         Map<String, Object> responseMap = new HashMap<>();
         responseMap.put("requestId", request.getRequestId());
         responseMap.put("fileId", request.getFileId());
+        responseMap.put("fileName", request.getFileName());
         responseMap.put("fileType", request.getFileType());
         responseMap.put("services", request.getServices());
         responseMap.put("createdAt", request.getCreatedAt());
@@ -71,6 +72,7 @@ public class RequestStatusController {
             Map<String, Object> requestData = new HashMap<>();
             requestData.put("requestId", request.getRequestId());
             requestData.put("fileId", request.getFileId());
+            requestData.put("fileName", request.getFileName());
             requestData.put("fileType", request.getFileType());
             requestData.put("services", request.getServices());
             requestData.put("createdAt", request.getCreatedAt());

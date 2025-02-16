@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Dashboard, Login, Register } from "./Components/Pages";
 import { useState } from "react";
 import { useEffect } from "react";
+import { Results } from "./Components/Results";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -32,7 +33,7 @@ function App() {
 
   return (
     <>
-      <div className="w-lvw h-lvh">
+      <div className="w-lvw h-lvh bg-blue-100">
         <BrowserRouter>
           <Routes>
             <Route
@@ -85,6 +86,48 @@ function App() {
                     <Navigate to="/" />
                   ) : (
                     <Register />
+                  )
+                ) : (
+                  <div></div>
+                )
+              }
+            />
+            <Route
+              path="/results/text-extraction/:requestId"
+              element={
+                !isLoading ? (
+                  isLoggedIn ? (
+                    <Results service="text-extraction" />
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                ) : (
+                  <div></div>
+                )
+              }
+            />
+            <Route
+              path="/results/summarization/:requestId"
+              element={
+                !isLoading ? (
+                  isLoggedIn ? (
+                    <Results service="summarization" />
+                  ) : (
+                    <Navigate to="/login" />
+                  )
+                ) : (
+                  <div></div>
+                )
+              }
+            />
+            <Route
+              path="/results/nlp/:requestId"
+              element={
+                !isLoading ? (
+                  isLoggedIn ? (
+                    <Results service="nlp" />
+                  ) : (
+                    <Navigate to="/login" />
                   )
                 ) : (
                   <div></div>

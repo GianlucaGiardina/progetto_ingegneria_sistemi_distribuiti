@@ -45,6 +45,7 @@ public class CentralServerController {
         private String file;
         private String userId;
         private String fileId;
+        private String fileName;
         private List<String> services;
 
         public String getFile() { return file; }
@@ -55,6 +56,9 @@ public class CentralServerController {
 
         public String getFileId() { return fileId; }
         public void setFileId(String fileId) { this.fileId = fileId; }
+
+        public String getFileName() { return fileName; }
+        public void setFileName(String fileName) { this.fileName = fileName; }
 
         public List<String> getServices() { return services; }
         public void setServices(List<String> services) { this.services = services; }
