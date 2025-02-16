@@ -12,10 +12,13 @@ function App() {
 
   const checkTokenValidity = async () => {
     try {
-      const response = await fetch("http://localhost:3001/api/validate_token", {
-        method: "GET",
-        credentials: "include",
-      });
+      const response = await fetch(
+        "https://localhost:3001/api/validate_token",
+        {
+          method: "GET",
+          credentials: "include",
+        }
+      );
       const data = await response.json();
       if (data.valid) {
         setIsLoggedIn(true);

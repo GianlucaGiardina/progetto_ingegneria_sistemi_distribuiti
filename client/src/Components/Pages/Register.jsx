@@ -17,8 +17,10 @@ export const Register = () => {
       return;
     }
 
-    const response = await fetch("http://localhost:3001/register", {
+    const endpoint = process.env["REGISTER_URL"];
+    const response = await fetch(endpoint, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },

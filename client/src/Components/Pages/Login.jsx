@@ -12,7 +12,8 @@ export const Login = () => {
 
     if (user && pass) {
       try {
-        const response = await fetch("http://localhost:3001/login", {
+        const endpoint = process.env["LOGIN_URL"];
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

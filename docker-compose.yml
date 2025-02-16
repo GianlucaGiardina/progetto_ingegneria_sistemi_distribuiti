@@ -143,15 +143,15 @@ services:
     ports:
       - "8080:8080"
 
-  client_test:
+  client:
     build:
-      context: ./client_test
+      context: ./client
       dockerfile: Dockerfile
-    container_name: client_test
+    container_name: client
     depends_on:
       - server_centrale_springboot
     ports:
-      - "5000:5000"
+      - "443:443"
 
   auth_server:
     build:

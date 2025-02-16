@@ -6,7 +6,6 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, set_access_cookies
 import os
 from pymongo import MongoClient
-from waitress import serve
 
 load_dotenv()
 
@@ -42,7 +41,7 @@ def register():
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
     users.insert_one({"username": username, "password": hashed_password})
     resp = jsonify({"message": "User registered successfully"})
-    resp.set_cookie('username', username)
+    resp.set_cookie('username', username, partitioned=True)
     return resp, 201
   elif request.method == 'GET':
     return jsonify({"message": "Register a new user"}), 200
@@ -69,7 +68,7 @@ def login():
         access_token = create_access_token(identity=str(user['_id']), expires_delta=timedelta(minutes=15))
         resp = jsonify({"message": "Login Success"})
         set_access_cookies(resp, access_token)
-        resp.set_cookie('username', username)
+        resp.set_cookie('username', username, partitioned=True)
         return resp, 200
     else:
         return jsonify({"error": "Invalid username or password"}), 401
@@ -83,4 +82,4 @@ def validate_token():
   return jsonify({"valid": True, "user": current_user}), 200
   
 if __name__ == '__main__':
-  serve(app, host="0.0.0.0", port=3001)
+  app.run(debug=True, host="0.0.0.0", port=5002, ssl_context='adhoc')
