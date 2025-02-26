@@ -37,24 +37,7 @@ services:
       retries: 5
       start_period: 10s
 
-  producer:
-    build:
-      context: ./producer
-      dockerfile: Dockerfile
-    container_name: producer
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      mongodb:
-        condition: service_healthy
-    ports:
-      - "9091:9091"
-    environment:
-      RABBIT_HOST: rabbitmq
-      RABBIT_QUEUE: summarize_queue
-      RABBITMQ_DEFAULT_USER: user
-      RABBITMQ_DEFAULT_PASS: pass
-      MONGO_URI: mongodb://admin:adminpass@mongodb:27017
+
 
   consumersummarize:
     build:
