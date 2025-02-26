@@ -3,6 +3,12 @@ import { useEffect } from "react";
 import { Table } from "react-bootstrap";
 import { useParams } from "react-router-dom";
 
+function unicodeToAscii(str) {
+  return str.replace(/\\u[\dA-Fa-f]{4}/g, (match) => {
+    return String.fromCharCode(parseInt(match.replace("\\u", ""), 16));
+  });
+}
+
 export const Results = ({ service }) => {
   const { requestId } = useParams();
   const [results, setResults] = useState(null);
@@ -83,7 +89,9 @@ export const Results = ({ service }) => {
             {results
               ? results.map(([entity, type], index) => (
                   <tr key={index}>
-                    <td className="p-2">{entity}</td>
+                    <td className="p-2">
+                      {unicodeToAscii(entity.replace("\\\\", "\\"))}
+                    </td>
                     <td className="p-2">{type}</td>
                   </tr>
                 ))
