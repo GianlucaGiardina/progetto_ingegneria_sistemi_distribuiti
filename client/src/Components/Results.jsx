@@ -63,7 +63,7 @@ export const Results = ({ service }) => {
             ? "Context"
             : ""}
         </h1>
-        <div className="min-w-full absolute flex justify-center">
+        <div className="min-w-full absolute flex justify-center bg-blue-100">
           <div className="max-w-fit border-2 mt-2 p-2">{results}</div>
         </div>
       </>
@@ -71,7 +71,7 @@ export const Results = ({ service }) => {
   }
   if (service === "nlp") {
     return (
-      <div className="flex justify-center pt-10 h-[55rem]">
+      <div className="flex justify-center pt-10 h-[55rem] bg-blue-100">
         <Table
           striped
           bordered

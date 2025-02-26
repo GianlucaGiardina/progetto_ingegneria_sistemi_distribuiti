@@ -34,7 +34,7 @@ function App() {
 
   return (
     <>
-      <div className="w-lvw h-lvh bg-blue-100">
+      <div className="w-lvw min-h-lvh max-h-fit bg-blue-100">
         <BrowserRouter>
           <Routes>
             <Route
